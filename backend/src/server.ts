@@ -26,7 +26,8 @@ async function checkWpsdReachable(): Promise<void> {
 const app = startBackend();
 const server = http.createServer(app);
 const cfg = getConfig();
-const PORT = Number(cfg.server?.port) ?? 3456;
+const port = Number(cfg.server?.port);
+const PORT = Number.isInteger(port) && port > 0 ? port : 3456;
 const HOST = cfg.server?.host ?? "0.0.0.0";
 
 server.listen(PORT, HOST, () => {

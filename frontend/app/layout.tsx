@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { QueryProvider } from "@/components/QueryProvider";
+import { HotspotReachableBanner } from "@/components/HotspotReachableBanner";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "WPSD Dashboard",
   description: "Next-generation interface for W0CHP Digital Voice Hotspot",
+  manifest: "/manifest.webmanifest",
+  themeColor: "#1e293b",
 };
 
 export default function RootLayout({
@@ -15,7 +18,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="min-h-screen font-sans">
-        <QueryProvider>{children}</QueryProvider>
+        <QueryProvider>
+          <HotspotReachableBanner>{children}</HotspotReachableBanner>
+        </QueryProvider>
       </body>
     </html>
   );

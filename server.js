@@ -44,8 +44,6 @@ let config = loadConfig();
 
 const PORT = Number(config.server?.port) || 3456;
 const HOST = config.server?.host ?? "0.0.0.0";
-const TGIF_BASE = "http://tgif.network:5040";
-const UNLINK_TG = "4000";
 
 function getWpsdBase() {
   return (config.wpsd?.host || "http://192.168.5.82").replace(/\/$/, "");
@@ -57,6 +55,61 @@ function getWpsdAuth() {
 }
 function getDmrId() {
   return config.tgif?.dmrId || "3221205";
+}
+
+/** Proxy TGIF via hotspot (tgif_manager.php, tgif_links.php) – same as Next.js backend. */
+let lastLinkedBySlot = { slot1: null, slot2: null };
+
+async function scrapeHotspotSlots() {
+  const base = getWpsdBase();
+  const auth = getWpsdAuth();
+  const u = `${base}/mmdvmhost/tgif_links.php`;
+  try {
+    const res = await fetchWithTimeout(u, {
+      headers: { Authorization: `Basic ${auth}` },
+      timeout: 10000,
+    });
+    if (!res.ok) return { slot1: null, slot2: null };
+    const html = await res.text();
+    const tdPattern = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+    const cells = [];
+    let m;
+    while ((m = tdPattern.exec(html)) !== null) {
+      cells.push(m[1].replace(/<[^>]*>/g, "").trim());
+    }
+    const slotValues = [];
+    for (const cell of cells) {
+      const tgMatch = cell.match(/TG\s*(\d+)/i);
+      if (tgMatch) slotValues.push(tgMatch[1]);
+      else if (cell.trim() === "None") slotValues.push("None");
+    }
+    const slot1 = slotValues.length >= 1 && slotValues[0] !== "None" ? slotValues[0] : null;
+    const slot2 = slotValues.length >= 2 && slotValues[1] !== "None" ? slotValues[1] : null;
+    return { slot1, slot2 };
+  } catch (err) {
+    return { slot1: null, slot2: null };
+  }
+}
+
+async function tgifViaWpsdProxy(action, timeslot1Based, tg) {
+  const base = getWpsdBase();
+  const auth = getWpsdAuth();
+  const u = `${base}/mmdvmhost/tgif_manager.php`;
+  const body =
+    action === "unlink"
+      ? `tgifSubmit=1&tgifSlot=${timeslot1Based}&tgifAction=UNLINK`
+      : `tgifSubmit=1&tgifSlot=${timeslot1Based}&tgifNumber=${encodeURIComponent(tg)}&tgifAction=LINK`;
+  const res = await fetchWithTimeout(u, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${auth}`,
+    },
+    body,
+    timeout: 15000,
+  });
+  const text = await res.text();
+  return { ok: res.ok, text };
 }
 
 function fetchWithTimeout(u, opts = {}) {
@@ -97,12 +150,6 @@ async function readBody(req, maxBytes = MAX_BODY_SIZE) {
   return body;
 }
 
-function tgifSlot(timeslot) {
-  // TS1 = 1 -> API slot 0, TS2 = 2 -> API slot 1
-  const ts = Math.max(1, Math.min(2, parseInt(timeslot, 10) || 2));
-  return ts - 1;
-}
-
 async function handleApi(req, res, parsed) {
   const p = parsed.pathname ?? "";
   const query = parsed.query;
@@ -112,19 +159,14 @@ async function handleApi(req, res, parsed) {
   res.setHeader("Access-Control-Allow-Origin", "*");
 
   try {
-    // --- TGIF ---
+    // --- TGIF (via hotspot proxy; no direct TGIF API) ---
     if (p === "/api/tgif/status" && method === "GET") {
-      const data = await fetchJson(`${TGIF_BASE}/api/sessions`, { timeout: 10000 });
-      const dmrId = getDmrId();
-      let session = null;
-      if (Array.isArray(data?.sessions)) {
-        session = data.sessions.find((s) => String(s?.repeater_id) === String(dmrId));
-      }
+      const slots = await scrapeHotspotSlots();
       const out = {
-        dmrId,
-        connected: !!session,
-        slot1: session ? (session.tg0 === UNLINK_TG ? null : session.tg0) : null,
-        slot2: session ? (session.tg === UNLINK_TG ? null : session.tg) : null,
+        dmrId: getDmrId(),
+        connected: true,
+        slot1: slots.slot1 ?? lastLinkedBySlot.slot1,
+        slot2: slots.slot2 ?? lastLinkedBySlot.slot2,
       };
       res.writeHead(200);
       res.end(JSON.stringify(out));
@@ -142,16 +184,17 @@ async function handleApi(req, res, parsed) {
         return;
       }
       const { tg, timeslot = 2 } = parsed;
-      const slot = tgifSlot(timeslot);
+      const ts = Math.max(1, Math.min(2, parseInt(timeslot, 10) || 2));
       const rawTg = parseInt(tg, 10);
       const targetTg = (Number.isInteger(rawTg) && rawTg >= 1 && rawTg <= 99999999) ? String(rawTg) : "777";
-      const apiUrl = `${TGIF_BASE}/api/sessions/update/${getDmrId()}/${slot}/${targetTg}`;
-      const tgifRes = await fetchWithTimeout(apiUrl, { method: "GET", timeout: 10000 });
-      if (!tgifRes.ok) {
-        throw new Error(`TGIF API returned ${tgifRes.status}`);
+      const { ok, text } = await tgifViaWpsdProxy("link", ts, targetTg);
+      if (!ok) {
+        throw new Error(`Hotspot TGIF returned ${text || "error"}`);
       }
+      if (ts === 1) lastLinkedBySlot.slot1 = targetTg;
+      else lastLinkedBySlot.slot2 = targetTg;
       res.writeHead(200);
-      res.end(JSON.stringify({ ok: true, tg: targetTg, slot: slot + 1 }));
+      res.end(JSON.stringify({ ok: true, tg: targetTg, slot: ts }));
       return;
     }
 
@@ -166,14 +209,15 @@ async function handleApi(req, res, parsed) {
         return;
       }
       const { timeslot = 2 } = parsed;
-      const slot = tgifSlot(timeslot);
-      const apiUrl = `${TGIF_BASE}/api/sessions/update/${getDmrId()}/${slot}/${UNLINK_TG}`;
-      const tgifRes = await fetchWithTimeout(apiUrl, { method: "GET", timeout: 10000 });
-      if (!tgifRes.ok) {
-        throw new Error(`TGIF API returned ${tgifRes.status}`);
+      const ts = Math.max(1, Math.min(2, parseInt(timeslot, 10) || 2));
+      const { ok, text } = await tgifViaWpsdProxy("unlink", ts);
+      if (!ok) {
+        throw new Error(`Hotspot TGIF returned ${text || "error"}`);
       }
+      if (ts === 1) lastLinkedBySlot.slot1 = null;
+      else lastLinkedBySlot.slot2 = null;
       res.writeHead(200);
-      res.end(JSON.stringify({ ok: true, slot: slot + 1 }));
+      res.end(JSON.stringify({ ok: true, slot: ts }));
       return;
     }
 

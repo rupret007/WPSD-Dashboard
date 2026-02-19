@@ -21,6 +21,27 @@ async function fetchJson(url: string, opts: RequestInit & { timeout?: number } =
   }
 }
 
+/** Fetch with one retry after 1s (for flaky hotspot). */
+async function fetchWithRetry(
+  url: string,
+  opts: RequestInit & { timeout?: number } = {}
+): Promise<Response> {
+  const attempt = async (): Promise<Response> => {
+    const timeout = opts.timeout ?? 5000;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeout);
+    const res = await fetch(url, { ...opts, signal: ctrl.signal });
+    clearTimeout(t);
+    return res;
+  };
+  try {
+    return await attempt();
+  } catch (e) {
+    await new Promise((r) => setTimeout(r, 1000));
+    return attempt();
+  }
+}
+
 function getWpsdBase(): string {
   const cfg = getConfig();
   return (cfg.wpsd?.host ?? "http://192.168.5.82").replace(/\/$/, "");
@@ -39,10 +60,11 @@ router.get("/", async (_req: Request, res: Response) => {
   const base = getWpsdBase();
   let reachable = false;
   try {
-    await fetchJson(`${base}/admin/system_api.php?action=get_ip&format=json`, {
+    const res = await fetchWithRetry(`${base}/admin/system_api.php?action=get_ip&format=json`, {
       headers: { Authorization: `Basic ${getWpsdAuth()}` },
+      timeout: 5000,
     });
-    reachable = true;
+    if (res.ok) reachable = true;
   } catch {
     // ignore
   }
@@ -60,11 +82,19 @@ router.put("/", (req: Request, res: Response) => {
     res.status(400).json({ error: "wpsdHost must start with http:// or https://" });
     return;
   }
+  const WPSD_HOST_MAX_LENGTH = 2048;
+  if (host.length > WPSD_HOST_MAX_LENGTH) {
+    res.status(400).json({
+      error: `wpsdHost must be at most ${WPSD_HOST_MAX_LENGTH} characters`,
+    });
+    return;
+  }
   try {
     updateWpsdHost(host);
     res.json({ ok: true, wpsdHost: host });
   } catch (err) {
     res.status(500).json({ error: String((err as Error).message) });
+    return;
   }
 });
 

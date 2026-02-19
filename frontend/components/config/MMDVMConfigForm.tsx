@@ -5,6 +5,8 @@ import { useMMDVMConfig, useUpdateMMDVMConfig } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import { StatusMessage } from "@/components/StatusMessage";
 import type { MMDVMHostConfig } from "@/lib/types";
 
 const CALLSIGN_REGEX = /^[A-Z0-9]{1,2}[0-9][A-Z]{1,4}$/i;
@@ -20,7 +22,7 @@ function validateFrequency(freq: string | number): boolean {
 }
 
 export function MMDVMConfigForm() {
-  const { data: config, isLoading, error } = useMMDVMConfig();
+  const { data: config, isLoading, error, refetch } = useMMDVMConfig();
   const mutation = useUpdateMMDVMConfig();
   const [localCallsign, setLocalCallsign] = React.useState("");
   const [localFreq, setLocalFreq] = React.useState("");
@@ -62,13 +64,16 @@ export function MMDVMConfigForm() {
   if (error) {
     return (
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 space-y-3">
           <p className="text-destructive">
             Failed to load config: {(error as Error).message}
           </p>
-          <p className="text-sm text-muted-foreground mt-2">
+          <p className="text-sm text-muted-foreground">
             MMDVM ini path may not exist or be readable on this system.
           </p>
+          <Button variant="outline" onClick={() => refetch()}>
+            Retry
+          </Button>
         </CardContent>
       </Card>
     );
@@ -77,7 +82,10 @@ export function MMDVMConfigForm() {
   if (isLoading && !config) {
     return (
       <Card>
-        <CardContent className="pt-6">Loading…</CardContent>
+        <CardContent className="pt-6 flex items-center gap-2 text-muted-foreground">
+          <Spinner />
+          <span>Loading config…</span>
+        </CardContent>
       </Card>
     );
   }
@@ -108,11 +116,7 @@ export function MMDVMConfigForm() {
               placeholder="145000000"
             />
           </div>
-          {msg && (
-            <p className={msg.ok ? "text-emerald-500" : "text-destructive"}>
-              {msg.text}
-            </p>
-          )}
+          <StatusMessage text={msg?.text} ok={msg?.ok ?? false} />
           <Button type="submit" disabled={mutation.isPending}>
             {mutation.isPending ? "Saving…" : "Apply Changes"}
           </Button>

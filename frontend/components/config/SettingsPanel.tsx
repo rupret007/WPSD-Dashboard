@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { StatusMessage } from "@/components/StatusMessage";
 
 export function SettingsPanel() {
   const { data, refetch } = useConfig();
@@ -49,19 +50,24 @@ export function SettingsPanel() {
           <Button onClick={handleUpdate} disabled={mutation.isPending}>
             Update
           </Button>
-          <Button variant="outline" onClick={() => refetch()}>
-            Test
+          <Button
+            variant="outline"
+            onClick={() => refetch()}
+            title="Check if the hotspot is reachable"
+          >
+            Test connection
           </Button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge variant={data?.reachable ? "success" : "destructive"}>
             {data?.reachable ? "WPSD reachable" : "WPSD not reachable"}
           </Badge>
-          {msg && (
-            <span className={msg.ok ? "text-emerald-500" : "text-destructive"}>
-              {msg.text}
+          {data && data.reachable === false && (
+            <span className="text-sm text-muted-foreground">
+              Check IP and network, or update the URL above.
             </span>
           )}
+          <StatusMessage text={msg?.text} ok={msg?.ok ?? false} />
         </div>
       </CardContent>
     </Card>

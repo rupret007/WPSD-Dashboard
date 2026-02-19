@@ -35,9 +35,16 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, timestamp: new Date().toISOString() });
 });
 
-// 404
-app.use("/api/*", (_req, res) => {
+// 404 for any unmatched /api/... path
+app.use("/api", (_req, res) => {
   res.status(404).json({ error: "Not found" });
+});
+
+// Global error handler: uncaught errors and rejected promises from async routes
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error(err);
+  const message = err instanceof Error ? err.message : String(err);
+  res.status(500).json({ error: message });
 });
 
 export function startBackend(): express.Application {

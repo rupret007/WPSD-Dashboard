@@ -9,6 +9,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import { StatusMessage } from "@/components/StatusMessage";
 import { cn } from "@/lib/utils";
 
 const TGIF_PRESETS = [
@@ -104,7 +106,10 @@ export function TGIFPanel({ accent }: TGIFPanelProps) {
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-4 font-mono text-sm items-center">
           {statusLoading ? (
-            <span className="text-muted-foreground">Loading…</span>
+            <span className="flex items-center gap-2 text-muted-foreground">
+              <Spinner size="sm" />
+              Loading…
+            </span>
           ) : statusError ? (
             <span className="flex flex-wrap items-center gap-2">
               <span className="text-muted-foreground">
@@ -120,7 +125,7 @@ export function TGIFPanel({ accent }: TGIFPanelProps) {
               <span>{slot2}</span>
               {showHelper && (
                 <span className="text-muted-foreground text-xs ml-2">
-                  (Slot status from hotspot; link/unlink to see &quot;last linked&quot; here when TGIF status is unavailable.)
+                  Slot status from hotspot. Link or unlink to see last linked here if status is unavailable.
                 </span>
               )}
             </>
@@ -178,11 +183,7 @@ export function TGIFPanel({ accent }: TGIFPanelProps) {
             Unlink
           </Button>
         </div>
-        {msg && (
-          <p className={msg.ok ? "text-emerald-500" : "text-destructive"}>
-            {msg.text}
-          </p>
-        )}
+        <StatusMessage text={msg?.text} ok={msg?.ok ?? false} />
       </CardContent>
     </Card>
   );

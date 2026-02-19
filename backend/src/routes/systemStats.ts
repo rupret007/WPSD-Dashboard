@@ -10,6 +10,7 @@ router.get("/", (_req, res) => {
     res.json(stats);
   } catch (err) {
     res.status(500).json({ error: String((err as Error).message) });
+    return;
   }
 });
 
@@ -19,6 +20,7 @@ router.get("/service", (_req, res) => {
     res.json(status);
   } catch (err) {
     res.status(500).json({ error: String((err as Error).message) });
+    return;
   }
 });
 

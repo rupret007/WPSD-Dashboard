@@ -15,24 +15,31 @@ const API_TIMEOUT_MS = 15000;
 async function fetchApi<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), opts.signal ? undefined : API_TIMEOUT_MS);
-  const res = await fetch(API_BASE + path, {
-    ...opts,
-    signal: opts.signal ?? ctrl.signal,
-    headers: opts.body
-      ? { "Content-Type": "application/json", ...opts.headers }
-      : opts.headers,
-  });
-  clearTimeout(t);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
-  return data as T;
+  try {
+    const res = await fetch(API_BASE + path, {
+      ...opts,
+      signal: opts.signal ?? ctrl.signal,
+      headers: opts.body
+        ? { "Content-Type": "application/json", ...opts.headers }
+        : opts.headers,
+    });
+    clearTimeout(t);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+    return data as T;
+  } catch (e) {
+    clearTimeout(t);
+    if (e instanceof Error && e.name === "AbortError") throw new Error("Request timed out");
+    throw e;
+  }
 }
 
 // Live Traffic (poll every 2s for near real-time dashboard metrics)
 export function useLiveTraffic(limit = 50) {
   return useQuery({
     queryKey: ["live-traffic", limit],
-    queryFn: () => fetchApi<DigitalVoicePacket[]>(`/live-traffic?limit=${limit}`),
+    queryFn: ({ signal }) =>
+      fetchApi<DigitalVoicePacket[]>(`/live-traffic?limit=${limit}`, { signal }),
     refetchInterval: 2000,
     refetchOnWindowFocus: true,
   });
@@ -42,7 +49,7 @@ export function useLiveTraffic(limit = 50) {
 export function useSystemStats() {
   return useQuery({
     queryKey: ["system-stats"],
-    queryFn: () => fetchApi<SystemStats>("/system"),
+    queryFn: ({ signal }) => fetchApi<SystemStats>("/system", { signal }),
     refetchInterval: 2000,
     refetchOnWindowFocus: true,
   });
@@ -52,7 +59,7 @@ export function useSystemStats() {
 export function useServiceStatus() {
   return useQuery({
     queryKey: ["service-status"],
-    queryFn: () => fetchApi<ServiceStatus>("/system/service"),
+    queryFn: ({ signal }) => fetchApi<ServiceStatus>("/system/service", { signal }),
     refetchInterval: 10000,
   });
 }
@@ -61,7 +68,7 @@ export function useServiceStatus() {
 export function useMMDVMConfig() {
   return useQuery({
     queryKey: ["mmdvm-config"],
-    queryFn: () => fetchApi<MMDVMHostConfig>("/mmdvm-config"),
+    queryFn: ({ signal }) => fetchApi<MMDVMHostConfig>("/mmdvm-config", { signal }),
   });
 }
 
@@ -91,7 +98,7 @@ export interface TGIFStatus {
 export function useTGIFStatus() {
   return useQuery({
     queryKey: ["tgif-status"],
-    queryFn: () => fetchApi<TGIFStatus>("/tgif/status"),
+    queryFn: ({ signal }) => fetchApi<TGIFStatus>("/tgif/status", { signal }),
     refetchInterval: 15000,
   });
 }
@@ -124,8 +131,8 @@ export function useTGIFUnlink() {
 export function useConfig() {
   return useQuery({
     queryKey: ["config"],
-    queryFn: () =>
-      fetchApi<{ wpsdHost: string; reachable: boolean }>("/config"),
+    queryFn: ({ signal }) =>
+      fetchApi<{ wpsdHost: string; reachable: boolean }>("/config", { signal }),
   });
 }
 
@@ -176,8 +183,11 @@ export function normalizeWPSDLastHeard(rows: WPSDLastHeardRow[]): DigitalVoicePa
 export function useWPSDLastHeard(limit = 50) {
   return useQuery({
     queryKey: ["wpsd-last-heard", limit],
-    queryFn: async () => {
-      const rows = await fetchApi<WPSDLastHeardRow[]>(`/wpsd/last-heard?limit=${limit}`);
+    queryFn: async ({ signal }) => {
+      const rows = await fetchApi<WPSDLastHeardRow[]>(
+        `/wpsd/last-heard?limit=${limit}`,
+        { signal }
+      );
       return normalizeWPSDLastHeard(rows);
     },
     refetchInterval: 2000,

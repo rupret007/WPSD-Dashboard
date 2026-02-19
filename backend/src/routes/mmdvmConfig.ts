@@ -9,6 +9,7 @@ router.get("/", (_req, res) => {
     res.json(config);
   } catch (err) {
     res.status(500).json({ error: String((err as Error).message) });
+    return;
   }
 });
 
@@ -40,6 +41,7 @@ router.put("/", async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: String((err as Error).message) });
+    return;
   }
 });
 

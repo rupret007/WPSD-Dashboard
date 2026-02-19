@@ -2,8 +2,9 @@
   "name": "wpsd-dashboard",
   "version": "1.0.0",
   "description": "Next-generation WPSD Dashboard for Digital Voice Hotspot control",
-  "scripts": {
-    "start": "node server.js",
+"scripts": {
+  "run-all": "powershell -ExecutionPolicy Bypass -File ./scripts/run-all.ps1",
+  "start": "node server.js",
     "dev": "concurrently --names \"backend,frontend\" --prefix-colors \"blue,green\" \"npm run backend\" \"npm run frontend\"",
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "backend": "cd backend && npm run dev",

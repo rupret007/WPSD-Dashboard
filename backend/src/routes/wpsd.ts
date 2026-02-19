@@ -81,6 +81,7 @@ router.get("/last-heard", async (req: Request, res: Response) => {
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: String((err as Error).message) });
+    return;
   }
 });
 
@@ -99,6 +100,7 @@ router.post("/action", async (req: Request, res: Response) => {
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: String((err as Error).message) });
+    return;
   }
 });
 

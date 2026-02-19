@@ -6,6 +6,7 @@ import { useRef, useMemo } from "react";
 import type { DigitalVoicePacket, DigitalVoiceMode } from "@/lib/types";
 import { TrafficRow } from "./TrafficRow";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 const COLUMNS = ["timestamp", "mode", "callsign", "target", "duration", "ber", "loss", "origin"];
 
@@ -58,8 +59,9 @@ export function TrafficTable({
 
   if (trafficLoading && packets.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
-        Loading…
+      <div className="rounded-lg border border-border bg-card p-8 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+        <Spinner />
+        <span>Loading…</span>
       </div>
     );
   }
@@ -110,20 +112,24 @@ export function TrafficTable({
             position: "relative",
           }}
         >
-          {virtualizer.getVirtualItems().map((virt) => (
-            <div
-              key={virt.key}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                transform: `translateY(${virt.start}px)`,
-              }}
-            >
-              <TrafficRow packet={packets[virt.index]} />
-            </div>
-          ))}
+          {virtualizer.getVirtualItems().map((virt) => {
+            const packet = packets[virt.index];
+            if (!packet) return null;
+            return (
+              <div
+                key={virt.key}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${virt.start}px)`,
+                }}
+              >
+                <TrafficRow packet={packet} />
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

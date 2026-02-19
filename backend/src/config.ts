@@ -51,8 +51,8 @@ function loadConfig(): AppConfig {
     }
     console.error("Invalid config.json:", e.message);
     process.exit(1);
+    return DEFAULT_CONFIG as AppConfig; // unreachable; satisfies return type
   }
-  return DEFAULT_CONFIG as AppConfig;
 }
 
 let config = loadConfig();

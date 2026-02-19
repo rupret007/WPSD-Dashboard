@@ -13,6 +13,7 @@ interface AppHeaderProps {
 
 const NAV_LINKS = [
   { href: "/", label: "Dashboard" },
+  { href: "/quick", label: "Quick TG" },
   { href: "/live-traffic", label: "Live Traffic" },
   { href: "/config", label: "Config" },
 ] as const;

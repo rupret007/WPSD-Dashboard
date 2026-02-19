@@ -74,8 +74,8 @@ async function tgifViaWpsdProxy(
 
 /**
  * Scrape the hotspot's tgif_links.php for current slot info.
- * The PHP on the hotspot calls the TGIF API internally; if the Pi can reach
- * tgif.network:5040, we get real slot data. Returns null slots on failure.
+ * The PHP on the hotspot calls the TGIF API internally; if the hotspot can
+ * reach the TGIF server, we get real slot data. Returns null slots on failure.
  */
 async function scrapeHotspotSlots(): Promise<{ slot1: string | null; slot2: string | null }> {
   const base = getWpsdBase();
@@ -173,9 +173,11 @@ router.post("/link", async (req: Request, res: Response) => {
       return;
     }
     res.status(500).json({ error: result.message ?? "Hotspot proxy failed" });
+    return;
   } catch (err) {
     const msg = (err as Error).message ?? String(err);
     res.status(500).json({ error: `Could not reach hotspot: ${msg}. ${proxyErrorMsg(0).replace(/Hotspot returned 0\. /, "")}` });
+    return;
   }
 });
 
@@ -193,9 +195,73 @@ router.post("/unlink", async (req: Request, res: Response) => {
       return;
     }
     res.status(500).json({ error: result.message ?? "Hotspot proxy failed" });
+    return;
   } catch (err) {
     const msg = (err as Error).message ?? String(err);
     res.status(500).json({ error: `Could not reach hotspot: ${msg}. ${proxyErrorMsg(0).replace(/Hotspot returned 0\. /, "")}` });
+    return;
+  }
+});
+
+/** GET quick-link: for bookmarks and Siri/Android Shortcuts. Same effect as POST /link. */
+router.get("/quick-link", async (req: Request, res: Response) => {
+  const tg = typeof req.query.tg === "string" ? req.query.tg : "777";
+  const timeslot = req.query.timeslot != null ? Number(req.query.timeslot) : 2;
+  const slot = tgifSlot(timeslot);
+  const slot1Based = (slot + 1) as 1 | 2;
+  const rawTg = parseInt(String(tg), 10);
+  const targetTg =
+    Number.isInteger(rawTg) && rawTg >= 1 && rawTg <= 99999999 ? String(rawTg) : "777";
+
+  try {
+    const result = await tgifViaWpsdProxy("link", slot1Based, targetTg);
+    if (result.ok) {
+      if (slot1Based === 1) lastLinkedBySlot.slot1 = targetTg;
+      else lastLinkedBySlot.slot2 = targetTg;
+      const prefersHtml = /text\/html/.test(req.get("accept") ?? "");
+      if (prefersHtml) {
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Linked TG ${targetTg}</title></head><body style="font-family:system-ui;padding:2rem;background:#0f172a;color:#e2e8f0;"><p>Linked TG ${targetTg} on TS${slot + 1}.</p></body></html>`);
+      } else {
+        res.json({ ok: true, tg: targetTg, slot: slot + 1 });
+      }
+      return;
+    }
+    res.status(500).json({ error: result.message ?? "Hotspot proxy failed" });
+    return;
+  } catch (err) {
+    const msg = (err as Error).message ?? String(err);
+    res.status(500).json({ error: `Could not reach hotspot: ${msg}` });
+    return;
+  }
+});
+
+/** GET quick-unlink: for bookmarks and Siri/Android Shortcuts. Same effect as POST /unlink. */
+router.get("/quick-unlink", async (req: Request, res: Response) => {
+  const timeslot = req.query.timeslot != null ? Number(req.query.timeslot) : 2;
+  const slot = tgifSlot(timeslot);
+  const slot1Based = (slot + 1) as 1 | 2;
+
+  try {
+    const result = await tgifViaWpsdProxy("unlink", slot1Based);
+    if (result.ok) {
+      if (slot1Based === 1) lastLinkedBySlot.slot1 = null;
+      else lastLinkedBySlot.slot2 = null;
+      const prefersHtml = /text\/html/.test(req.get("accept") ?? "");
+      if (prefersHtml) {
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unlinked</title></head><body style="font-family:system-ui;padding:2rem;background:#0f172a;color:#e2e8f0;"><p>Unlinked TS${slot + 1}.</p></body></html>`);
+      } else {
+        res.json({ ok: true, slot: slot + 1 });
+      }
+      return;
+    }
+    res.status(500).json({ error: result.message ?? "Hotspot proxy failed" });
+    return;
+  } catch (err) {
+    const msg = (err as Error).message ?? String(err);
+    res.status(500).json({ error: `Could not reach hotspot: ${msg}` });
+    return;
   }
 });
 

@@ -10,6 +10,7 @@ import { SystemWidgets } from "./SystemWidgets";
 import { TGIFPanel } from "@/components/config/TGIFPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { StatusMessage } from "@/components/StatusMessage";
 import { cn } from "@/lib/utils";
 
 function lastUpdatedLabel(ts: number): string {
@@ -142,40 +143,40 @@ export function Dashboard() {
         </Card>
       </div>
 
-      {topTGs.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Most active talkgroups (TGIF)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-2">
-              By recent traffic on your hotspot (TGIF has no public API for &quot;most people&quot;). Click a TG to join it.
-            </p>
-            <div className="flex flex-wrap gap-2 items-center mb-2">
-              <span className="text-sm text-muted-foreground">Link to:</span>
-              <div className="inline-flex rounded-md bg-muted p-0.5 gap-0.5">
-                <button
-                  type="button"
-                  onClick={() => setJoinTs(1)}
-                  className={cn(
-                    "px-3 py-1 rounded text-sm font-medium",
-                    joinTs === 1 ? "bg-primary text-primary-foreground" : ""
-                  )}
-                >
-                  TS1
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setJoinTs(2)}
-                  className={cn(
-                    "px-3 py-1 rounded text-sm font-medium",
-                    joinTs === 2 ? "bg-primary text-primary-foreground" : ""
-                  )}
-                >
-                  TS2
-                </button>
-              </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle>Most active talkgroups (TGIF)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-2">
+            By recent traffic on your hotspot (TGIF has no public API for &quot;most people&quot;). Click a TG to join it.
+          </p>
+          <div className="flex flex-wrap gap-2 items-center mb-2">
+            <span className="text-sm text-muted-foreground">Link to:</span>
+            <div className="inline-flex rounded-md bg-muted p-0.5 gap-0.5">
+              <button
+                type="button"
+                onClick={() => setJoinTs(1)}
+                className={cn(
+                  "px-3 py-1 rounded text-sm font-medium",
+                  joinTs === 1 ? "bg-primary text-primary-foreground" : ""
+                )}
+              >
+                TS1
+              </button>
+              <button
+                type="button"
+                onClick={() => setJoinTs(2)}
+                className={cn(
+                  "px-3 py-1 rounded text-sm font-medium",
+                  joinTs === 2 ? "bg-primary text-primary-foreground" : ""
+                )}
+              >
+                TS2
+              </button>
             </div>
+          </div>
+          {topTGs.length > 0 ? (
             <ul className="flex flex-wrap gap-2 text-mono">
               {topTGs.map(({ tg, count }) => (
                 <li key={tg}>
@@ -192,14 +193,25 @@ export function Dashboard() {
                 </li>
               ))}
             </ul>
-            {joinMsg && (
-              <p className={cn("text-sm mt-2", joinMsg.ok ? "text-emerald-500" : "text-destructive")}>
-                {joinMsg.text}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <p className="text-sm text-muted-foreground mb-2">
+              No recent traffic to suggest talkgroups. Link a TG or generate some traffic.
+            </p>
+            <Button
+              variant="success"
+              size="sm"
+              onClick={() => handleJoinTG(777)}
+              disabled={linkMutation.isPending}
+              className="font-mono"
+            >
+              Link 777 Parrot
+            </Button>
+          )}
+          <div className="text-sm mt-2">
+            <StatusMessage text={joinMsg?.text} ok={joinMsg?.ok ?? false} />
+          </div>
+        </CardContent>
+      </Card>
 
       <SystemWidgets stats={stats} />
     </div>

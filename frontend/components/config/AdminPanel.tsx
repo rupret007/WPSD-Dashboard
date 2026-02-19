@@ -4,6 +4,8 @@ import React from "react";
 import { useWPSDAction } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { StatusMessage } from "@/components/StatusMessage";
 
 const ACTION_SUCCESS_MESSAGES: Record<string, string> = {
   reboot: "Reboot initiated",
@@ -98,20 +100,41 @@ export function AdminPanel() {
         <CardTitle>Admin Actions</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {mutation.isPending && (
+          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+            <Spinner size="sm" />
+            <span>Running…</span>
+          </div>
+        )}
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          <Button onClick={() => runAction("restart_wpsd_services", "Restart Services")}>
+          <Button
+            onClick={() => runAction("restart_wpsd_services", "Restart Services")}
+            disabled={mutation.isPending}
+          >
             Restart Services
           </Button>
-          <Button onClick={() => runAction("stop_wpsd_services", "Stop Services")}>
+          <Button
+            onClick={() => runAction("stop_wpsd_services", "Stop Services")}
+            disabled={mutation.isPending}
+          >
             Stop Services
           </Button>
-          <Button onClick={() => runAction("update_wpsd", "WPSD Update")}>
+          <Button
+            onClick={() => runAction("update_wpsd", "WPSD Update")}
+            disabled={mutation.isPending}
+          >
             WPSD Update
           </Button>
-          <Button onClick={() => runAction("update_hostfiles", "Update Hostfiles")}>
+          <Button
+            onClick={() => runAction("update_hostfiles", "Update Hostfiles")}
+            disabled={mutation.isPending}
+          >
             Update Hostfiles
           </Button>
-          <Button onClick={() => runAction("reload_wifi", "Reload Wi‑Fi")}>
+          <Button
+            onClick={() => runAction("reload_wifi", "Reload Wi‑Fi")}
+            disabled={mutation.isPending}
+          >
             Reload Wi‑Fi
           </Button>
         </div>
@@ -125,6 +148,7 @@ export function AdminPanel() {
               onClick={() =>
                 runAction("reboot", "Reboot the hotspot?", true)
               }
+              disabled={mutation.isPending}
             >
               Reboot
             </Button>
@@ -133,16 +157,13 @@ export function AdminPanel() {
               onClick={() =>
                 runAction("shutdown", "Shutdown the hotspot?", true)
               }
+              disabled={mutation.isPending}
             >
               Shutdown
             </Button>
           </div>
         </div>
-        {msg && (
-          <p className={msg.ok ? "text-emerald-500" : "text-destructive"}>
-            {msg.text}
-          </p>
-        )}
+        <StatusMessage text={msg?.text} ok={msg?.ok ?? false} />
         {confirm && (
           <div
             className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
@@ -160,7 +181,11 @@ export function AdminPanel() {
                 >
                   Cancel
                 </Button>
-                <Button variant="destructive" onClick={confirmAction}>
+                <Button
+                  variant="destructive"
+                  onClick={confirmAction}
+                  disabled={mutation.isPending}
+                >
                   Confirm
                 </Button>
               </div>
