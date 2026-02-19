@@ -1,6 +1,6 @@
-# WPSD Quick Admin
+# WPSD-Dashboard
 
-A lightweight local dashboard for controlling your WPSD hotspot and TGIF talkgroups without logging into the full admin console.
+**WPSD Quick Admin** – A lightweight local dashboard for controlling your WPSD hotspot and TGIF talkgroups without logging into the full admin console.
 
 ## Features
 
@@ -17,7 +17,7 @@ A lightweight local dashboard for controlling your WPSD hotspot and TGIF talkgro
 
 ## Quick Start
 
-1. Edit `config.json` if your hotspot IP, credentials, or DMR ID differ from defaults.
+1. Copy `config.example.json` to `config.json` and edit with your hotspot IP, credentials, and DMR ID.
 
 2. Start the service. At startup, the server checks whether the WPSD is reachable and logs the result:
    ```bash
@@ -56,7 +56,7 @@ The server checks reachability at startup and logs whether the WPSD is reachable
 
 ## Security
 
-- Credentials are stored only in `config.json` on your PC.
+- Credentials are stored only in `config.json` on your PC (not committed; see `config.example.json`).
 - The helper service listens on the LAN; keep your network trusted.
 - Reboot and shutdown require confirmation.
 
