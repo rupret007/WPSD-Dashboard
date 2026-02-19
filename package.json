@@ -1,16 +1,21 @@
 {
-  "name": "wpsd-dashboard-command",
+  "name": "wpsd-dashboard",
   "version": "1.0.0",
-  "description": "Quick admin UI for WPSD hotspot and TGIF talkgroup control",
-  "main": "server.js",
+  "description": "Next-generation WPSD Dashboard for Digital Voice Hotspot control",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "concurrently --names \"backend,frontend\" --prefix-colors \"blue,green\" \"npm run backend\" \"npm run frontend\"",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "backend": "cd backend && npm run dev",
+    "backend:build": "cd backend && npm run build",
+    "frontend": "cd frontend && npm run dev",
+    "frontend:build": "cd frontend && npm run build",
+    "build": "npm run backend:build && npm run frontend:build"
   },
-  "keywords": ["wpsd", "tgif", "dmr", "ham-radio"],
-  "author": "",
+  "keywords": ["wpsd", "tgif", "mmdvm", "dmr", "ham-radio"],
   "license": "MIT",
-  "engines": {
-    "node": ">=18.0.0"
+  "engines": { "node": ">=18.0.0" },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
   }
 }

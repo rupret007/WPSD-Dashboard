@@ -1,64 +1,105 @@
-# WPSD-Dashboard
+# WPSD Dashboard
 
-**WPSD Quick Admin** – A lightweight local dashboard for controlling your WPSD hotspot and TGIF talkgroups without logging into the full admin console.
+Next-generation interface for W0CHP Digital Voice Hotspot control and monitoring. Parses MMDVMHost logs, displays system stats, and manages configuration.
 
 ## Features
 
-- **TGIF Manager** – Link/unlink talkgroups (TG 777 “Parrot” preset, custom TG, TS1/TS2)
-- **Admin Actions** – Restart/stop services, WPSD update, hostfiles update, reload Wi‑Fi, reboot, shutdown
-- **Last Heard** – Recent transmissions from your hotspot
-- **LAN Access** – Use from phone or tablet on your network
+- **Cockpit View** – Current mode, last caller, BER, CPU temp above the fold
+- **Live Traffic** – Virtualized list of parsed MMDVM log entries (DMR, D-Star, YSF, P25)
+- **System Status** – CPU load, temperature, disk, memory, uptime
+- **MMDVM Config** – Edit callsign, frequency (mmdvmhost.ini)
+- **TGIF Manager** – Link/unlink talkgroups (TG 777 Parrot, custom TG, TS1/TS2)
+- **Admin Actions** – Restart/stop services, WPSD update, hostfiles, Wi-Fi, reboot, shutdown
+- **Settings** – Update hotspot IP (mobile hotspot friendly)
 
 ## Requirements
 
-- Node.js 18 or later
+- Node.js 18+
 - Your PC and hotspot on the same LAN
 - Hotspot IP reachable from your PC (default: 192.168.5.82)
+- For MMDVM log parsing and config: Pi-Star or similar with `/var/log/pi-star/` and `/etc/mmdvmhost`
 
 ## Quick Start
 
 1. Copy `config.example.json` to `config.json` and edit with your hotspot IP, credentials, and DMR ID.
 
-2. Start the service. At startup, the server checks whether the WPSD is reachable and logs the result:
+2. Install dependencies (once):
    ```bash
-   npm start
+   npm run install:all
    ```
+   Or install manually: `npm install` in the project root, then in `backend/`, then in `frontend/`.
 
-3. Open in a browser:
-   - **PC:** http://localhost:3456
-   - **Phone/Tablet:** http://\<your-pc-ip\>:3456
+3. Start the app (backend + frontend together):
+   ```bash
+   npm run dev
+   ```
+   This starts the backend on port **3456** and the Next.js frontend on port **3000**. Open **http://localhost:3000** in your browser.
+
+   To run only one process: `npm run backend` or `npm run frontend`.
+
+4. **URLs**
+   - **App (use this):** http://localhost:3000  
+   - **Backend API:** http://localhost:3456  
+
+The frontend proxies `/api/*` to the backend in development.
+
+## Project Structure
+
+```
+WPSD-Dashboard/
+├── backend/           # Express API bridge (log parsers, system stats, TGIF/WPSD proxy)
+├── frontend/          # Next.js 14, React, Tailwind, Shadcn-style UI
+├── shared/            # Shared TypeScript types
+├── config.json        # Runtime config (gitignored)
+└── config.example.json
+```
+
+## Using real data
+
+- **Live traffic from MMDVM logs**  
+  The backend reads `MMDVM-YYYY-MM-DD.log` from `paths.logDir`. To use real logs:
+  1. **Run the backend on Pi-Star** (e.g. on the same Raspberry Pi as your hotspot). Then `/var/log/pi-star` exists and logs are used automatically.
+  2. **Or point to a copy of the logs** on your PC: put MMDVM log files in a folder, then set that folder in `config.json` under `paths.logDir`, or set the env var when starting the backend:
+     ```bash
+     MMDVM_LOG_DIR=/path/to/folder/with/MMDVM-logs npm run backend
+     ```
+     The folder should contain files like `MMDVM-2025-02-19.log` (same format as Pi-Star).
+
+- **When the log directory is missing** (e.g. backend on a Mac, no log path set), live traffic from logs is empty. The app still shows **real hotspot activity** via **WPSD Last Heard** (dashboard and Live Traffic page use it as a fallback when the log feed is empty). Set `wpsd.host` to your hotspot base URL (e.g. `http://192.168.5.82`). That is the same host as the device’s **Live** view (e.g. `http://192.168.5.82/live/`); the dashboard uses the same last-heard data source.
 
 ## Config (`config.json`)
 
-| Setting        | Description                          | Default       |
-|----------------|--------------------------------------|---------------|
-| `wpsd.host`    | Hotspot base URL                     | http://192.168.5.82 |
-| `wpsd.username`| WPSD login                           | pi-star       |
-| `wpsd.password`| WPSD password                        | raspberry     |
-| `tgif.dmrId`   | Hotspot DMR ID for TGIF              | 3221205       |
-| `server.port`  | Port for the quick admin server      | 3456          |
-| `server.host`  | Bind address (0.0.0.0 = all LAN)     | 0.0.0.0       |
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `wpsd.host` | Hotspot base URL | http://192.168.5.82 |
+| `wpsd.username` | WPSD login | pi-star |
+| `wpsd.password` | WPSD password | raspberry |
+| `tgif.dmrId` | Hotspot DMR ID for TGIF | 3221205 |
+| `server.port` | Backend port | 3456 |
+| `paths.logDir` | MMDVM log directory (or set `MMDVM_LOG_DIR` env) | /var/log/pi-star |
+| `paths.mmdvmIni` | MMDVM ini file path | /etc/mmdvmhost |
 
-## Mobile Hotspot / IP Confirmation
+### TGIF link/unlink and status
 
-When using a mobile hotspot, the WPSD may get a different IP from DHCP. Use the **Settings – WPSD Host** section in the UI to:
+TGIF link/unlink work **exclusively through your hotspot**: the dashboard sends requests to your hotspot's admin page (`tgif_manager.php` — same as the TGIF Manager in the browser), and the hotspot talks to TGIF. The old direct TGIF API (`tgif.network:5040`) is deprecated and no longer used.
 
-1. See the current IP and reachability (Test).
-2. Update the IP and click **Update** to save (no restart required).
+Slot status (TS1/TS2) is read from the hotspot's `tgif_links.php` page. If the hotspot's TGIF page can't reach the TGIF server, slots may show "None", but link/unlink still work.
 
-The server checks reachability at startup and logs whether the WPSD is reachable.
+- In `config.json`, set `tgif.dmrId` to your hotspot's DMR ID (same as in Pi-Star DMR settings).
+- Ensure `wpsd.host`, `wpsd.username`, and `wpsd.password` are correct so the backend can reach the hotspot admin (same URL you use for TGIF Manager in the browser).
+- To confirm which URLs the backend uses, open **GET /api/tgif/info** (e.g. `http://localhost:3456/api/tgif/info`) in a browser; it returns `dmrId`, `wpsdProxyUrl`, and `statusUrl`.
 
-## TGIF Talkgroups
+See [docs/TGIF_API_RESEARCH.md](docs/TGIF_API_RESEARCH.md) for background.
 
-- **Link 777 (Parrot)** – Connects to Parrot TG; when someone stops transmitting, it moves to the next transmission.
-- **Unlink** – Sets the selected timeslot back to unlinked (TG 4000).
-- **Custom TG** – Enter any TG number and click Link.
+## Legacy Quick Admin
 
-## Security
+The original single-file quick admin (`server.js` + `public/index.html`) is still present. Run with:
 
-- Credentials are stored only in `config.json` on your PC (not committed; see `config.example.json`).
-- The helper service listens on the LAN; keep your network trusted.
-- Reboot and shutdown require confirmation.
+```bash
+npm start
+```
+
+This serves the legacy UI on port 3456 without the Next.js frontend.
 
 ## License
 
