@@ -1,0 +1,16 @@
+{
+  "name": "wpsd-dashboard-command",
+  "version": "1.0.0",
+  "description": "Quick admin UI for WPSD hotspot and TGIF talkgroup control",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["wpsd", "tgif", "dmr", "ham-radio"],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

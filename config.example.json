@@ -1,0 +1,14 @@
+{
+  "wpsd": {
+    "host": "http://192.168.5.82",
+    "username": "pi-star",
+    "password": "YOUR_WPSD_PASSWORD"
+  },
+  "tgif": {
+    "dmrId": "YOUR_DMR_ID"
+  },
+  "server": {
+    "port": 3456,
+    "host": "0.0.0.0"
+  }
+}
